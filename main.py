@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -63,11 +64,16 @@ async def delete_collection(name: str):
     return RedirectResponse("/", status_code=303)
 
 
+class Doc(BaseModel):
+    metadata: str
+    document: str
 @app.post("/add_document/{collection_name}")
-async def add_document(collection_name: str, document: str = Form(...), metadata: str = Form(...)):
+async def add_document(collection_name: str, doc: Doc):
     collection = chroma_client.get_or_create_collection(collection_name)
     doc_id = str(uuid.uuid4())
-    collection.add(documents=[document], metadatas=[{"info": metadata}], ids=[doc_id])
+    collection.add(documents=[doc.document], metadatas=[{"info": doc.metadata}], ids=[doc_id])
+    # return {**doc.model_dump(), "status": "created"}
+
     return RedirectResponse(f"/collection/{collection_name}", status_code=303)
 
 

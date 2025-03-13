@@ -1,0 +1,9 @@
+.active-collection {
+    font-weight: normal;
+    color: navy; /* Change color as needed */
+    text-decoration: underline;
+}
+
+*{
+    background-color: red;
+}
