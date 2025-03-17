@@ -1,4 +1,6 @@
+import json
 import uuid
+from typing import Dict
 
 import chromadb
 from fastapi import FastAPI, Request, Form, UploadFile, File
@@ -16,6 +18,31 @@ env.globals['zip'] = zip
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 chroma_client = chromadb.PersistentClient(path="./chromadb_data")
+
+
+
+CONNECTION_JSON_STORE = "./connections.json"
+def get_connections():
+    with open(CONNECTION_JSON_STORE, 'r') as file:
+        connections = json.load(file)
+    return connections
+
+def create_connection(data: Dict[str, str]):
+    connections=get_connections()
+    connections.append(data)
+    with open(CONNECTION_JSON_STORE, 'w') as file:
+        json.dump(connections, file)
+
+
+def delete_connection(name: str):
+    connections=get_connections()
+    new_connections = []
+    for conn in connections:
+        if conn["name"] == name:
+            continue
+        new_connections.append(conn)
+    with open(CONNECTION_JSON_STORE, 'w') as file:
+        json.dump(new_connections, file)
 
 
 @app.get("/", response_class=HTMLResponse)

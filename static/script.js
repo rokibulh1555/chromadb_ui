@@ -13,7 +13,7 @@ let DATA = []
 
 async function search(collection_name) {
     return async function () {
-        console.log('dfd')
+        new URLSearchParams()
         let content = document.getElementById("docs");
         content.innerHTML = '';
         const query_value = document.getElementById("searchValue").value.trim(); // Trim spaces
@@ -48,7 +48,7 @@ function loadCollections() {
                 const listItem = document.createElement('li');
                 listItem.innerHTML = `
 <div id="collection_live" class="collection-item" style="display: flex; justify-content: space-between; align-items: center;">
-    <a href="#" onclick="rightPartShow('${collection.name}')" class="font-medium mr-4">${collection.name}</a>
+    <a href="?active_collection=${collection.name}" onclick="rightPartShow('${collection.name}')" class="font-medium mr-4">${collection.name}</a>
     
     <button type="button" class="cursor-pointer delete-btn" data-collection="${collection.name}">
         <i class="fa-solid fa-trash-can" style="color: #e0451f;"></i>
@@ -57,7 +57,7 @@ function loadCollections() {
 
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 5px; box-shadow: 0px 0px 10px rgba(0,0,0,0.2);">
-    <p>Are you sure about to delete this collection ${collection.name}?</p>
+    <p>Are you sure about to delete this collection?</b> </p>
     <form id="deleteForm" action="" method="post">
         <button type="submit" style="background: red; color: white; padding: 5px 10px; border: none; cursor: pointer;">Delete</button>
         <button type="button" onclick="closeModal()" style="padding: 5px 10px; border: none; cursor: pointer;">Cancel</button>
