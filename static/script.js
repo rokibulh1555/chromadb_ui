@@ -143,9 +143,9 @@ async function rightPartShow(collectionName) {
                             <div class = "col-span-7 col-start-1">
                              <h2 class="text-xl mb-2">Add Document</h2>
                             <form id="addDocumentForm">
-                                <input type="text" id="documentText" required placeholder="Document Text">
-                                <input type="text" id="metadataInfo" required placeholder="Metadata Info">
-                                <button type="submit" class="cursor-pointer text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Add</button>
+                                <input type="text" class="h-8" id="documentText" required placeholder="Document Text">
+                                <input type="text" class="h-8" id="metadataInfo" required placeholder="Metadata Info">
+                                <button type="submit" class="cursor-pointer text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-sm rounded-sm text-sm px-5 py-1.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Add</button>
                             </form>
 </div>
                             
@@ -153,7 +153,7 @@ async function rightPartShow(collectionName) {
                             <div class = "col-span-4 col-start-9">
                             <h2 class="text-xl mb-2">Upload File</h2>
                             <form id="uploadFileForm">
-                                <input type="file" id="fileInput" required>
+                                <input type="file" id="fileInput" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white" required>
                                 <button type="submit" class="cursor-pointer mt-2 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Upload</button>
                             </form>
 </div>
@@ -364,7 +364,7 @@ async function loadConnections() {
             li.className = "p-2 cursor-pointer flex items-center justify-between border-b";
             li.innerHTML = ` <div>
                 <span>${conn.name}</span>
-                <span class="text-green-500 hidden">&#10003;</span>
+                <span class="text-green-900 text-lg hidden">&#10003;</span>
                </div>
                
               <button  data-connection="${conn.name}" type="button" class="cursor-pointer delete-connection-btn" data-connection="${conn.name}">
