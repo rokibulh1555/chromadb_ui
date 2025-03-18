@@ -1,13 +1,15 @@
-import json
 import uuid
 from typing import Dict
 
 import chromadb
-from fastapi import FastAPI, Request, Form, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel
+
+from connection import connections, ConnectionClass, get_connections
 
 app = FastAPI()
 
@@ -20,29 +22,27 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 chroma_client = chromadb.PersistentClient(path="./chromadb_data")
 
 
-
-CONNECTION_JSON_STORE = "./connections.json"
-def get_connections():
-    with open(CONNECTION_JSON_STORE, 'r') as file:
-        connections = json.load(file)
-    return connections
-
-def create_connection(data: Dict[str, str]):
-    connections=get_connections()
-    connections.append(data)
-    with open(CONNECTION_JSON_STORE, 'w') as file:
-        json.dump(connections, file)
+@app.get("/get_connections")
+async def fetch_connections():
+    """Fetch all saved connections."""
+    return get_connections()
 
 
-def delete_connection(name: str):
-    connections=get_connections()
-    new_connections = []
-    for conn in connections:
-        if conn["name"] == name:
-            continue
-        new_connections.append(conn)
-    with open(CONNECTION_JSON_STORE, 'w') as file:
-        json.dump(new_connections, file)
+@app.post("/create_connection")
+async def create_connection(data: Dict[str, str]):
+    """Create a new connection."""
+    conn = ConnectionClass(**data)
+    connections.create_client(conn)
+
+    return JSONResponse(content={"message": "Connection created successfully"}, status_code=201)
+
+
+@app.post("/delete_connection/{name}")
+async def delete_connection_route(name: str):
+    print(f"Debugging: Deleting connection with name: {name}")
+    connections.delete_client(name)
+    # return JSONResponse(content={"message": "Connection deleted successfully"}, status_code=200)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -60,6 +60,7 @@ from fastapi.responses import JSONResponse
 def mapper(data):
     return {"id": data[1], "document": data[0], "meta": data[2]}
 
+
 @app.get("/collection/{name}")
 async def view_collection(name: str):
     """View all documents in a specific collection."""
@@ -71,18 +72,40 @@ async def view_collection(name: str):
 
 
 @app.get("/collection-list")
-async def get_collection_list():
-    """Get the list of collections."""
-    collection_names = chroma_client.list_collections()
-    collections = [{"name": name} for name in collection_names]
+async def get_collections(connection_name: str):
+    """Fetch all collections related to a specific connection."""
+    try:
+        all_collections = connections.get_client(
+            connection_name).list_collections()  # Now returns a list of collection names
 
-    return JSONResponse(content={"collections": collections})
+        # Include debug logs in the response
+        return {
+            "collections": all_collections,
+            "filtered": all_collections
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class CollectionRequest(BaseModel):
+    collection_name: str
+    connection_name: str
 
 
 @app.post("/add_collection")
-async def add_collection(name: str = Form(...)):
-    chroma_client.get_or_create_collection(name)
-    return RedirectResponse("/", status_code=303)
+async def add_collection(request: CollectionRequest):
+    """Create a collection under a specific connection in ChromaDB."""
+    connection_name = request.connection_name
+    collection_name = request.collection_name
+
+    # Create a unique identifier for collections under connections
+    full_collection_name = f"{connection_name}_{collection_name}"
+
+    try:
+        chroma_client.get_or_create_collection(full_collection_name)
+        return {"message": f"Collection '{collection_name}' created under connection '{connection_name}'"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/delete_collection/{name}")
@@ -94,6 +117,8 @@ async def delete_collection(name: str):
 class Doc(BaseModel):
     metadata: str
     document: str
+
+
 @app.post("/add_document/{collection_name}")
 async def add_document(collection_name: str, doc: Doc):
     collection = chroma_client.get_or_create_collection(collection_name)

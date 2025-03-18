@@ -2,6 +2,7 @@ window.onload = function () {
     var rightPart = document.getElementById("right_part");
     rightPart.style.display = "none";
     loadCollections();
+    loadConnections();
 
     const savedCollection = localStorage.getItem("selectedCollection");
     if (savedCollection) {
@@ -38,19 +39,36 @@ async function search(collection_name) {
 
 
 function loadCollections() {
-    fetch('/collection-list')
+    const selectedConnection = localStorage.getItem("selectedConnection");
+
+    if (!selectedConnection) {
+        console.log("No connection selected.");
+        return;
+    }
+
+    fetch(`/collection-list?connection_name=${selectedConnection}`)
         .then(response => response.json())
         .then(data => {
-            const collectionsList = document.getElementById('collections_list');
-            collectionsList.innerHTML = '';
+            const collectionsList = document.getElementById("collections_list");
+            collectionsList.innerHTML = "";
+            console.log("collection_list:", data)
+            if (data.collections.length === 0) {
+                collectionsList.innerHTML = "<li>No collections found.</li>";
+                return;
+            }
+            // fetch('/collection-list')
+            //     .then(response => response.json())
+            //     .then(data => {
+            //         const collectionsList = document.getElementById('collections_list');
+            //         collectionsList.innerHTML = '';
 
             data.collections.forEach(collection => {
                 const listItem = document.createElement('li');
                 listItem.innerHTML = `
 <div id="collection_live" class="collection-item" style="display: flex; justify-content: space-between; align-items: center;">
-    <a href="?active_collection=${collection.name}" onclick="rightPartShow('${collection.name}')" class="font-medium mr-4">${collection.name}</a>
+    <a href="?active_collection=${collection}" onclick="rightPartShow('${collection}')" class="font-medium mr-4">${collection}</a>
     
-    <button type="button" class="cursor-pointer delete-btn" data-collection="${collection.name}">
+    <button type="button" class="cursor-pointer delete-btn" data-collection="${collection}">
         <i class="fa-solid fa-trash-can" style="color: #e0451f;"></i>
     </button>
 </div>
@@ -173,7 +191,6 @@ async function rightPartShow(collectionName) {
 
 
 function addDocument(collectionName) {
-    console.log("Rokib", collectionName)
     const documentText = document.getElementById("documentText").value;
     const metadataText = document.getElementById("metadataInfo").value;
 
@@ -189,7 +206,7 @@ function addDocument(collectionName) {
     fetch(`/add_document/${collectionName}`, {
         method: "POST",
         body: JSON.stringify(formData),
-        headers: {'Content-Type': 'application/json'}
+        headers: { 'Content-Type': 'application/json' }
 
     })
         .then(response => {
@@ -251,7 +268,7 @@ function uploadFile(collectionName) {
 
 
 function deleteDocument(collectionName, id) {
-    fetch(`${collectionName}/documents/${id}`, {method: "DELETE"})
+    fetch(`${collectionName}/documents/${id}`, { method: "DELETE" })
         .then(res => rightPartShow(collectionName))
 }
 
@@ -282,3 +299,201 @@ function drawDataWindow(data, collectionName) {
     }).join('')}
                             </ul> </div>`
 }
+
+
+
+
+document.getElementById("openCreateConnectionModal").addEventListener("click", function () {
+    document.getElementById("createConnectionModal").classList.remove("hidden");
+});
+
+document.getElementById("closeCreateConnectionModal").addEventListener("click", function () {
+    document.getElementById("createConnectionModal").classList.add("hidden");
+});
+
+document.getElementById("saveConnection").addEventListener("click", async function () {
+    const connName = document.getElementById("connName").value.trim();
+    const connType = document.getElementById("connType").value;
+    const connFilePath = document.getElementById("connFilePath").value.trim();
+    const connHost = document.getElementById("connHost").value.trim();
+    const connPort = document.getElementById("connPort").value.trim();
+
+    if (!connName) {
+        alert("Please fill connection name");
+        return;
+    }
+    if (connType === "http" && (!connHost || !connPort)) {
+        alert("Please fill host and port")
+        return;
+    }
+    if (connType === "file" && !connFilePath) {
+        alert("Please fill db path")
+        return;
+    }
+
+    const newConnection = { name: connName, type: connType, db_path: connFilePath, host: connHost, port: connPort };
+    console.log(newConnection)
+    try {
+        const response = await fetch("/create_connection", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newConnection),
+        });
+
+        if (!response.ok) throw new Error("Failed to create connection");
+
+        document.getElementById("createConnectionModal").classList.add("hidden");
+        loadConnections(); // Refresh list after creation
+    } catch (error) {
+        console.error("Error creating connection:", error);
+        alert("Failed to create the connection.");
+    }
+});
+
+async function loadConnections() {
+    try {
+        const response = await fetch("/get_connections");
+        if (!response.ok) throw new Error("Failed to fetch connections");
+
+        const connections = await response.json();
+        const connectionsList = document.getElementById("connections_list");
+        connectionsList.innerHTML = "";
+
+        connections.forEach((conn) => {
+            const li = document.createElement("li");
+            li.className = "p-2 cursor-pointer flex items-center justify-between border-b";
+            li.innerHTML = ` <div>
+                <span>${conn.name}</span>
+                <span class="text-green-500 hidden">&#10003;</span>
+               </div>
+               
+              <button  data-connection="${conn.name}" type="button" class="cursor-pointer delete-connection-btn" data-connection="${conn.name}">
+        <i class="fa-solid fa-trash-can" style="color: #e0451f;"></i>
+    </button>
+    
+    <!-- Delete Connection Modal -->
+<div id="deleteModalConnection" class="modal" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 5px; box-shadow: 0px 0px 10px rgba(0,0,0,0.2);">
+    <p>Are you sure you want to delete this connection?</p>
+    <form id="deleteFormConnection" method="post">
+        <button type="submit" style="background: red; color: white; padding: 5px 10px; border: none; cursor: pointer;">Delete</button>
+        <button type="button" onclick="closeModalConnection()" style="padding: 5px 10px; border: none; cursor: pointer;">Cancel</button>
+    </form>
+</div>
+
+            `;
+            li.onclick = () => selectConnection(li, conn.name);
+            connectionsList.appendChild(li);
+        });
+    } catch (error) {
+        console.error("Error loading connections:", error);
+    }
+}
+
+function selectConnection(element, connName) {
+    document.querySelectorAll("#connections_list li span:last-child").forEach((el) => el.classList.add("hidden"));
+    element.querySelector("span:last-child").classList.remove("hidden");
+
+    localStorage.setItem("selectedConnection", connName);
+    loadCollections(); // Load collections for this connection
+}
+
+
+
+
+document.getElementById("addCollectionForm").addEventListener("submit", async function (event) {
+    event.preventDefault(); // Prevent default form submission
+
+    const collectionName = document.getElementById("collectionName").value.trim();
+    const selectedConnection = localStorage.getItem("selectedConnection"); // Retrieve stored connection name
+
+    if (!selectedConnection) {
+        alert("No connection selected. Please select a connection first.");
+        return;
+    }
+
+    if (!collectionName) {
+        alert("Please enter a collection name.");
+        return;
+    }
+
+    const requestData = {
+        collection_name: collectionName,
+        connection_name: selectedConnection
+    };
+
+    try {
+        const response = await fetch("/add_collection", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestData),
+        });
+
+        if (!response.ok) throw new Error("Failed to create collection");
+
+        alert("Collection created successfully!");
+        loadCollections(); // Reload collections after successful creation
+    } catch (error) {
+        console.error("Error creating collection:", error);
+        alert("Failed to create the collection.");
+    }
+});
+
+
+//for deleting a connection
+
+document.addEventListener("click", function (event) {
+    if (event.target.closest(".delete-connection-btn")) {
+        const button = event.target.closest(".delete-connection-btn");
+        const connectionName = button.getAttribute("data-connection");
+
+        // ✅ Set the form action dynamically
+        document.getElementById("deleteFormConnection").action = `/delete_connection/${connectionName}`;
+
+        // ✅ Show the modal
+        document.getElementById("deleteModalConnection").style.display = "block";
+    }
+});
+
+// Function to close the modal
+function closeModalConnection() {
+    document.getElementById("deleteModalConnection").style.display = "none";
+}
+
+// ✅ Handle form submission for deletion
+document.getElementById("deleteFormConnection").addEventListener("submit", async function (event) {
+    event.preventDefault(); // Prevent actual form submission
+
+    const formAction = this.action; // Get the action URL dynamically set
+
+    try {
+        const response = await fetch(formAction, { method: "POST" });
+
+        if (response.ok) {
+            alert("Connection deleted successfully!");
+            closeModalConnection();
+            location.reload(); // Refresh UI
+        } else {
+            const errorData = await response.json();
+            alert(`Error: ${errorData.detail}`);
+        }
+    } catch (error) {
+        console.error("Error deleting connection:", error);
+        alert("Failed to delete connection.");
+    }
+});
+
+
+
+
+
+
+// document.querySelectorAll('.delete-connection-btn2').forEach(button => {
+//     button.addEventListener('click', function(event) {
+//         // Prevent the default button behavior (if any)
+//         event.preventDefault();
+//
+//         // Call deleteConnection with the data-connection attribute from the button
+//         const conn = button.getAttribute('data-connection');
+//         console.log(conn)
+//     });
+// });
